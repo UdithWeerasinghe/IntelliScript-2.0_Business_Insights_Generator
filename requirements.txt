@@ -1,1 +1,19 @@
-# requirements.txt - Add your code here
+openpyxl
+xlrd
+numpy
+pandas
+matplotlib
+seaborn
+requests
+scikit-learn
+transformers
+accelerate
+trl
+auto-gptq
+optimum
+einops
+bitsandbytes
+sentence-transformers
+prophet
+huggingface_hub
+python-dotenv

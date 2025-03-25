@@ -1,8 +1,10 @@
-{
+
+  {
     "input_folder": "data/input",
     "intermediate_folder": "data/intermediate",
     "output_folder": "data/output",
-    "hf_api_key": "HF_API_KEY",
-    "model_name": "meta-llama/Meta-Llama-3-8B-Instruct",
+    "hf_api_key": "HF_API_KEY",  
+    "model_name": "llama3.2:3b",
     "device": "cuda"
   }
+  

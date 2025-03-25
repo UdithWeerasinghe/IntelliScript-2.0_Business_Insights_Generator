@@ -24,11 +24,11 @@ def is_time_related(value):
     if isinstance(value, str):
         value = re.sub(r'\([^)]*\)', '', value).strip()
         date_patterns = [
-            r'^\d{4}$',              # yyyy
-            r'^\d{1,2}/\d{4}$',       # mm/yyyy
-            r'^\d{4}/\d{1,2}$',       # yyyy/mm
-            r'^\d{1,2}/\d{1,2}/\d{4}$',  # mm/dd/yyyy or dd/mm/yyyy
-            r'^[a-zA-Z]{3,}-\d{2}$',   # e.g., Jan-19
+            r'^\d{4}$',
+            r'^\d{1,2}/\d{4}$',
+            r'^\d{4}/\d{1,2}$',
+            r'^\d{1,2}/\d{1,2}/\d{4}$',
+            r'^[a-zA-Z]{3,}-\d{2}$',
         ]
         for pattern in date_patterns:
             if re.match(pattern, value):
@@ -41,26 +41,23 @@ def is_time_related(value):
 def normalize_date(value, inferred_year=None):
     if isinstance(value, datetime):
         return value
-    if isinstance(value, (int, float)):
-        try:
-            from openpyxl.utils.datetime import from_excel
-            return from_excel(value)
-        except Exception:
-            pass
     if isinstance(value, str):
         value = re.sub(r'\([^)]*\)', '', value).strip()
-        if "-" in value or value.lower() in MONTHS:
-            parts = value.split("-")
-            month = MONTHS.get(parts[0].lower(), None)
-            if month:
-                if len(parts) == 2 and parts[1].isdigit():
-                    inferred_year = int("20" + parts[1]) if len(parts[1]) == 2 else int(parts[1])
-                    return datetime(inferred_year, month, 1)
-                elif inferred_year:
-                    return datetime(inferred_year, month, 1)
-        dt = pd.to_datetime(value, errors="coerce")
-        if pd.notna(dt):
-            return dt.to_pydatetime()
+        try:
+            if "-" in value or value.lower() in MONTHS:
+                parts = value.split("-")
+                month = MONTHS.get(parts[0].lower(), None)
+                if month:
+                    if len(parts) == 2 and parts[1].isdigit():
+                        inferred_year = int("20" + parts[1]) if len(parts[1]) == 2 else int(parts[1])
+                        return datetime(inferred_year, month, 1)
+                    elif inferred_year:
+                        return datetime(inferred_year, month, 1)
+            if value.lower() in MONTHS and inferred_year:
+                month = MONTHS[value.lower()]
+                return datetime(inferred_year, month, 1)
+        except Exception:
+            pass
     return value
 
 def process_time_structure(cells, inferred_year=None):
@@ -68,7 +65,7 @@ def process_time_structure(cells, inferred_year=None):
     current_year = inferred_year
     for cell in cells:
         if pd.isna(cell):
-            continue
+            break
         if is_time_related(cell):
             normalized_date = normalize_date(cell, current_year)
             if isinstance(normalized_date, datetime):
@@ -91,7 +88,7 @@ def extract_time_data(sheet):
         inferred_year = None
         col_dates = process_time_structure(col, inferred_year)
         time_data.extend(col_dates)
-    time_data = [d for d in time_data if isinstance(d, datetime) or (isinstance(d, str) and d)]
+    time_data = [d for d in time_data if isinstance(d, (datetime, str))]
     datetime_values = sorted([d for d in time_data if isinstance(d, datetime)])
     string_values = sorted([d for d in time_data if isinstance(d, str)])
     return datetime_values + string_values
@@ -101,13 +98,13 @@ def extract_parameters(sheet):
     for row in sheet.iter_rows(values_only=True):
         for i, cell in enumerate(row):
             if isinstance(cell, str) and not is_time_related(cell):
-                values = row[i + 1:]
+                values = row[i+1:]
                 if all(isinstance(v, (int, float)) for v in values if v is not None):
                     parameters[cell] = values
     for col in sheet.iter_cols(values_only=True):
         for i, cell in enumerate(col):
             if isinstance(cell, str) and not is_time_related(cell):
-                values = col[i + 1:]
+                values = col[i+1:]
                 if all(isinstance(v, (int, float)) for v in values if v is not None):
                     parameters[cell] = values
     return parameters
@@ -129,7 +126,7 @@ def save_organized_data(time_data, parameters, output_file):
             sheet.cell(row=row_idx, column=col_idx, value=value)
         col_idx += 1
     workbook.save(output_file)
-    print(f"Saved organized Excel: {output_file}")
+    print(f"Saved: {output_file}")
 
 def process_excel_file(input_path, output_folder):
     workbook = load_workbook(input_path, data_only=True)
@@ -157,34 +154,40 @@ def process_raw_excel_files(input_folder, intermediate_folder):
 def process_excel_to_timeseries(input_directory, output_directory):
     os.makedirs(output_directory, exist_ok=True)
     consolidated_data = []
-    files = [f for f in os.listdir(input_directory) if f.lower().endswith(('.xlsx', '.xls'))]
-    if not files:
-        print("No organized Excel files found in the intermediate folder.")
-    for file_name in files:
-        file_path = os.path.join(input_directory, file_name)
-        print(f"Processing organized file: {file_name}")
-        xls = pd.ExcelFile(file_path)
-        for sheet_name in xls.sheet_names:
-            print(f"  Processing sheet: {sheet_name}")
-            df = pd.read_excel(xls, sheet_name=sheet_name)
-            if 'Date' not in df.columns:
-                print(f"  Skipping sheet '{sheet_name}' as it does not contain a 'Date' column.")
-                continue
-            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-            df = df.dropna(subset=['Date'])
-            df = df.sort_values(by='Date')
-            time_series_data = {}
-            for col in df.columns:
-                if col != 'Date':
-                    time_series_data[col] = [
-                        {"Date": row['Date'].isoformat(), "value": row[col]} 
-                        for _, row in df[['Date', col]].dropna().iterrows()
-                    ]
-            json_output_path = os.path.join(output_directory, f"{file_name}_{sheet_name}.json")
-            with open(json_output_path, 'w', encoding='utf-8') as json_file:
-                json.dump(time_series_data, json_file, indent=4)
-            print(f"    Saved JSON file: {json_output_path}")
-            consolidated_data.append(df)
+    for file_name in os.listdir(input_directory):
+        if file_name.endswith(('.xlsx', '.xls')):
+            file_path = os.path.join(input_directory, file_name)
+            print(f"Processing file: {file_name}")
+            xls = pd.ExcelFile(file_path)
+            for sheet_name in xls.sheet_names:
+                print(f"  Processing sheet: {sheet_name}")
+                df = pd.read_excel(xls, sheet_name=sheet_name)
+                if 'Date' not in df.columns:
+                    print(f"  Skipping sheet '{sheet_name}' as it does not contain a 'Date' column.")
+                    continue
+                df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+                df = df.dropna(subset=['Date'])
+                df = df.sort_values(by='Date')
+                time_series_data = {}
+                for col in df.columns:
+                    if col != 'Date':
+                        time_series_data[col] = [
+                            {"Date": row['Date'].isoformat(), "value": row[col]}
+                            for _, row in df[['Date', col]].dropna().iterrows()
+                        ]
+                json_structure = {
+                    "metadata": {
+                        "file_name": file_name,
+                        "sheet_name": sheet_name
+                    },
+                    "data": time_series_data
+                }
+                json_output_path = os.path.join(output_directory, f"{file_name}_{sheet_name}.json")
+                with open(json_output_path, 'w', encoding='utf-8') as json_file:
+                    json.dump(json_structure, json_file, indent=4)
+                print(f"    Saved JSON file: {json_output_path}")
+                df.rename(columns={"Date": "Date"}, inplace=True)
+                consolidated_data.append(df)
     if consolidated_data:
         combined_df = pd.concat(consolidated_data, ignore_index=True)
         excel_output_path = os.path.join(output_directory, "consolidated_timeseries.xlsx")
@@ -198,4 +201,5 @@ def run_etl_pipeline(input_folder, intermediate_folder, output_folder):
     process_raw_excel_files(input_folder, intermediate_folder)
     print("Step 2: Converting organized Excel files to JSON and consolidated Excel...")
     process_excel_to_timeseries(intermediate_folder, output_folder)
+
 
