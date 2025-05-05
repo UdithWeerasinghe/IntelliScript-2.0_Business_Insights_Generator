@@ -57,40 +57,148 @@
 #     response = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
 #     return response
 
-import subprocess
+######################################################################################################################################################
+
+# import subprocess
+# import json
+
+# def load_config(config_path='config/config.json'):
+#     with open(config_path, 'r', encoding='utf-8') as f:
+#         config = json.load(f)
+#     return config
+
+# def authenticate_and_load_model(config):
+#     """
+#     With Ollama, no model loading or authentication is needed in Python.
+#     Ensure that Ollama is installed and that the model 'llama3.2:3b' is available.
+#     Return dummy values.
+#     """
+#     return None, None, None
+
+# def generate_response(system_prompt, user_prompt, temperature=0.7, max_tokens=500, **kwargs):
+#     """
+#     Generate a response using Ollama's CLI with the model 'llama3.2:3b'.
+#     The system and user prompts are concatenated into a single prompt.
+#     """
+#     # Combine system prompt and user prompt into one string
+#     prompt = f"{system_prompt}\n{user_prompt}"
+#     try:
+#         # Call Ollama CLI; adjust command-line parameters as needed per Ollama's documentation.
+#         result = subprocess.run(
+#             ["ollama", "run", "llama3.2:3b", prompt],
+#             stdout=subprocess.PIPE,
+#             stderr=subprocess.PIPE,
+#             text=True,
+#             check=True
+#         )
+#         response = result.stdout.strip()
+#         return response
+#     except subprocess.CalledProcessError as e:
+#         print("Error calling Ollama:", e.stderr)
+#         return "Error generating response."
+
+##############ollama code ###########################################################################################################
+
+
+# import subprocess
+# import json
+
+# def load_config(config_path='config/config.json'):
+#     with open(config_path, 'r', encoding='utf-8') as f:
+#         config = json.load(f)
+#     return config
+
+# def authenticate_and_load_model(config):
+#     """
+#     With Ollama, no model loading or authentication is needed.
+#     Ensure Ollama is installed and that the model 'llama3.2:3b' is available.
+#     Return dummy values.
+#     """
+#     return None, None, None
+
+# def generate_response(system_prompt, user_prompt, temperature=0.7, max_tokens=500, **kwargs):
+#     """
+#     Generate a response using Ollama's CLI with the model 'llama3.2:3b'.
+#     Combines system and user prompts into a single prompt.
+#     """
+#     prompt = f"{system_prompt}\n{user_prompt}"
+#     try:
+#         result = subprocess.run(
+#             ["ollama", "run", "llama3.2:3b", prompt],
+#             stdout=subprocess.PIPE,
+#             stderr=subprocess.PIPE,
+#             text=True,
+#             encoding="utf-8",
+#             check=True
+#         )
+#         response = result.stdout.strip()
+#         return response
+#     except subprocess.CalledProcessError as e:
+#         print("Error calling Ollama:", e.stderr)
+#         return "Error generating response."
+
+
+############multi modal code###############
+
+# import subprocess
+# import json
+
+# def load_config(config_path='config/config.json'):
+#     with open(config_path, 'r', encoding='utf-8') as f:
+#         config = json.load(f)
+#     return config
+
+# def authenticate_and_load_model(config):
+#     """
+#     With Ollama, no model loading or authentication is needed.
+#     Ensure Ollama is installed and that the model 'llama3.2:3b' is available.
+#     Return dummy values.
+#     """
+#     return None, None, None
+
+# def generate_response(system_prompt, user_prompt, temperature=0.7, max_tokens=500, **kwargs):
+#     """
+#     Generate a response using Ollama's CLI with the model 'llama3.2:3b'.
+#     Combines system and user prompts into a single prompt.
+#     """
+#     prompt = f"{system_prompt}\n{user_prompt}"
+#     try:
+#         result = subprocess.run(
+#             ["ollama", "run", "llama3.2:3b", prompt],
+#             stdout=subprocess.PIPE,
+#             stderr=subprocess.PIPE,
+#             text=True,
+#             encoding="utf-8",
+#             check=True
+#         )
+#         response = result.stdout.strip()
+#         return response
+#     except subprocess.CalledProcessError as e:
+#         print("Error calling Ollama:", e.stderr)
+#         return "Error generating response."
+
+
+# src/llm.py #####aiagent code#######
+
+# src/llm.py
 import json
+from langchain_ollama.llms import OllamaLLM
+
+_llm = None
 
 def load_config(config_path='config/config.json'):
     with open(config_path, 'r', encoding='utf-8') as f:
-        config = json.load(f)
-    return config
+        return json.load(f)
 
 def authenticate_and_load_model(config):
-    """
-    With Ollama, no model loading or authentication is needed in Python.
-    Ensure that Ollama is installed and that the model 'llama3.2:3b' is available.
-    Return dummy values.
-    """
+    global _llm
+    model_name = config.get("model_name", "llama3.2:3b")
+    _llm = OllamaLLM(model=model_name)
     return None, None, None
 
 def generate_response(system_prompt, user_prompt, temperature=0.7, max_tokens=500, **kwargs):
-    """
-    Generate a response using Ollama's CLI with the model 'llama3.2:3b'.
-    The system and user prompts are concatenated into a single prompt.
-    """
-    # Combine system prompt and user prompt into one string
-    prompt = f"{system_prompt}\n{user_prompt}"
-    try:
-        # Call Ollama CLI; adjust command-line parameters as needed per Ollama's documentation.
-        result = subprocess.run(
-            ["ollama", "run", "llama3.2:3b", prompt],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            check=True
-        )
-        response = result.stdout.strip()
-        return response
-    except subprocess.CalledProcessError as e:
-        print("Error calling Ollama:", e.stderr)
-        return "Error generating response."
+    if _llm is None:
+        raise RuntimeError("Call authenticate_and_load_model first")
+    prompt = f"SYSTEM: {system_prompt}\nUSER: {user_prompt}\nASSISTANT:"
+    return _llm.invoke(prompt)
+

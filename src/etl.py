@@ -1,3 +1,5 @@
+#######################normal code ##############################
+
 
 import os
 import re
@@ -202,4 +204,6 @@ def run_etl_pipeline(input_folder, intermediate_folder, output_folder):
     print("Step 2: Converting organized Excel files to JSON and consolidated Excel...")
     process_excel_to_timeseries(intermediate_folder, output_folder)
 
+
+################# multi-modal code ##############################
 

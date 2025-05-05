@@ -17,3 +17,14 @@ sentence-transformers
 prophet
 huggingface_hub
 python-dotenv
+pypdf
+python-docx
+python-pptx
+pillow
+pytesseract
+pathlib
+langchain
+#ollama-client
+faiss-cpu
+langchain-ollama
+langchain_community
